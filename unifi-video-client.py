@@ -60,7 +60,7 @@ def timezone_check(ctx, param, value):
 @click.option('-u', '--username', help='Unifi Video username', required=True, default='administrator', type=click.STRING)
 @click.option('-d', '--hostname', help='Domain name, hostname or IP address for the Video controller. E.g. 127.0.0.1', type=click.STRING, required=True)
 @click.option('-p', '--port', help='Port number for the Video controller. Defaults to 7443', default=7443, type=click.IntRange(1, 65535))
-@click.option('-o', '--output-dir', help='Directory to save the videos to.', type=click.Path(exists=False, file_okay=False, writable=True, resolve_path=True, allow_dash=True))
+@click.option('-o', '--output-dir', help='Directory to save the videos to.', type=click.Path(exists=True, file_okay=False, writable=True, resolve_path=True, allow_dash=True))
 @click.option('--password', help='UVC User\'s password. Script will prompt for password later on if not entered. This option exists for scripting.', prompt=True, hide_input=True)
 @click.option('-tz', '--timezone', callback=timezone_check, help='Set timezone to be something other than \'America/Denver\'. Default is \'America/Denver\'.', default='America/Denver', type=click.STRING)
 @click.argument('camera-names', nargs=-1)

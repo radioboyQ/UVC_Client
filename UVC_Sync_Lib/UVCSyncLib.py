@@ -8,6 +8,8 @@ from time import sleep, strftime, gmtime
 
 import click
 import requests
+from prompt_toolkit.shortcuts import ProgressBar
+from prompt_toolkit import HTML
 from urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
 
@@ -331,7 +333,7 @@ class UVC_API_ASync(object):
             self.logger.debug('Creating output directories')
             output_path.mkdir(exist_ok=False)
 
-        elif output_path.is_dir():
-            # Don't over write existing directories, for now
-            self.logger.critical('Output directory already exists')
-            sys.exit(1)
+        # elif output_path.is_dir():
+        #     # Don't over write existing directories, for now
+        #     self.logger.critical('Output directory already exists')
+        #     sys.exit(1)
