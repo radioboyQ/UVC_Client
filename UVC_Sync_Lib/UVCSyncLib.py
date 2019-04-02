@@ -9,6 +9,8 @@ from time import sleep, strftime, gmtime
 import click
 import requests
 from prompt_toolkit.shortcuts import ProgressBar
+from prompt_toolkit.styles import Style
+from prompt_toolkit.shortcuts.progress_bar import formatters
 from prompt_toolkit import HTML
 from urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
@@ -100,6 +102,7 @@ class UVC_API_ASync(object):
             self.logger.critical(f'Failed to obtain the camera data. Check the error {r.text}')
             sys.exit(1)
         elif r.status_code is 200:
+            # pprint(r.json(), indent=4)
             self.logger.debug("Obtained the bootstrap page.")
 
         bootstrap_data = r.json()
@@ -109,11 +112,12 @@ class UVC_API_ASync(object):
             bootstrap_data['data'][0]['cameras']
         except KeyError:
             self.logger.error('The UVC didn\'t provide the bootstrap data for the cameras.')
-            pprint(bootstrap_data['data'])
+            # pprint(bootstrap_data['data'])
             sys.exit(1)
         else:
             # Check if we got all of the data from bootstrap
             if len(bootstrap_data['data'][0]['cameras']) > 0:
+                # pprint(bootstrap_data)
                 self.logger.debug('Obtained camera data from bootstrap endpoint')
             else:
                 self.logger.critical('The bootstrap endpoint didn\'t provide the correct data. Exiting.')
@@ -280,45 +284,62 @@ class UVC_API_ASync(object):
         # num_clips = len(self.clip_meta_data)
         url_id_params = str()
 
+        # Progress Bar Styles and Format
+        style = Style.from_dict({
+            'label': 'bg:#000000 #ffffff',
+            'percentage': 'bg:#000000 #ffffff',
+            'current': '#448844',
+            'bar': '',
+        })
+
+        custom_formatters = [
+            formatters.Label(),
+            formatters.Text(': [', style='class:percentage'),
+            formatters.Percentage(),
+            formatters.Text(']', style='class:percentage'),
+            formatters.Text(' '),
+            formatters.Bar(start='[', end=']', sym_a='#', sym_b='>', sym_c='*'),
+            formatters.Text('  '),
+        ]
+
         # Create output if it doesn't exist yet
         self.outputPathCheck(output_path)
 
         # pprint(self.dict_info_clip, indent=4)
+        num_clips = len(self.dict_info_clip)
 
-        # Dict of files to download
-        for count, clip in enumerate(self.dict_info_clip, 1):
-            # Show which video we are on out of the total number of videos
-            click.secho(f'[*] Downloading {count} of {len(self.dict_info_clip)} videos.', bold=True)
-            # print(f"{self.url}/api/2.0/recording/{self.dict_info_clip[clip].clip_id}/download")
-            req = requests.Request('GET', f"{self.url}/api/2.0/recording/{self.dict_info_clip[clip].clip_id}/download", cookies=meta_cookies)
-            prepped = req.prepare()
-            # print(prepped.url)
-            self.logger.debug(f'Attempting to download clip {self.dict_info_clip[clip].clip_id}')
+        with ProgressBar(style=style, formatters=custom_formatters) as pb:
+            for clip in pb(list(self.dict_info_clip), label=f"Downloading {num_clips} Videos", remove_when_done=False):
+                req = requests.Request('GET',
+                                       f"{self.url}/api/2.0/recording/{self.dict_info_clip[clip].clip_id}/download",
+                                       cookies=meta_cookies)
+                prepped = req.prepare()
+                # print(prepped.url)
+                self.logger.debug(f'Attempting to download clip {self.dict_info_clip[clip].clip_id}')
 
-            r = self.session.send(prepped, stream=True)
+                r = self.session.send(prepped, stream=True)
 
-            if r.status_code is 200:
-                self.logger.debug(f'Successfully requested clip {self.dict_info_clip[clip].clip_id}')
-            elif r.status_code is 401:
-                self.logger.critical(f'Unauthorized, exiting.')
-                sys.exit(1)
-            else:
-                self.logger.critical(f'Unexpected error occured: {r.status_code}. Exiting.')
-                pprint(r.text)
-                sys.exit(1)
+                if r.status_code is 200:
+                    self.logger.debug(f'Successfully requested clip {self.dict_info_clip[clip].clip_id}')
+                elif r.status_code is 401:
+                    self.logger.critical(f'Unauthorized, exiting.')
+                    sys.exit(1)
+                else:
+                    self.logger.critical(f'Unexpected error occured: {r.status_code}. Exiting.')
+                    # pprint(r.text)
+                    sys.exit(1)
 
-            total = r.headers.get('Content-Length')
-            num_chunks = round(int(total) / self.chunk_size)
+                total = r.headers.get('Content-Length')
+                num_chunks = round(int(total) / self.chunk_size)
 
-            file_path = Path(output_path, self.dict_info_clip[clip].cameraName.replace(' ', '_'), self.dict_info_clip[clip].fullFileName)
-            if not file_path.parent.exists():
-                file_path.parent.mkdir(exist_ok=True)
+                file_path = Path(output_path, self.dict_info_clip[clip].cameraName.replace(' ', '_'),
+                                 self.dict_info_clip[clip].fullFileName)
+                if not file_path.parent.exists():
+                    file_path.parent.mkdir(exist_ok=True)
 
-            with open(file_path , 'wb') as f:
-                with click.progressbar(r.iter_content(chunk_size=self.chunk_size), length=num_chunks, label=f'Downloading Video {self.dict_info_clip[clip].fullFileName}', show_percent=True, show_eta=False) as bar:
-                    for data in bar:
+                with open(file_path, 'wb') as f:
+                    for data in pb(r.iter_content(chunk_size=self.chunk_size), total=num_chunks, label=f'Downloading', remove_when_done=False, ):
                         f.write(data)
-            self.logger.info(f'Done downloading file {self.dict_info_clip[clip].clip_id}')
 
 
     def outputPathCheck(self, output_path):
