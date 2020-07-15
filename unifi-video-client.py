@@ -27,9 +27,9 @@ def datetime_check(ctx, param, value):
     Function to check the datetime input
     """
     if value is None:
-        if param.name is 'start_time':
+        if param.name == 'start_time':
             raise click.BadParameter('You must provide a start time.')
-        elif param.name is 'end_time':
+        elif param.name == 'end_time':
             raise click.BadParameter('You must provide an end time.')
         else:
             raise click.BadParameter(f'I\'m being called for {param.name} which is wrong.')
@@ -38,9 +38,9 @@ def datetime_check(ctx, param, value):
         denver_dt = pendulum.from_format(value, 'DD-MM-YYYY:HH:mm:ss')
         return value
     except:
-        if param.name is 'start_time':
+        if param.name == 'start_time':
             raise click.BadParameter('Start datetime is not in the correct format.')
-        elif param.name is 'end_time':
+        elif param.name == 'end_time':
             raise click.BadParameter('End datetime is not in the correct format.')
         else:
             raise click.BadParameter(f'I\'m being called for {param.name} which is wrong.')
